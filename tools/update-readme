@@ -1,0 +1,65 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+use 5.010;
+use autodie qw/ open close /;
+
+use FindBin '$Bin';
+use YAML::PP;
+use YAML::PP::Common qw/ PRESERVE_ORDER /;
+
+my $actionyaml = "$Bin/../action.yaml";
+
+my $action = YAML::PP->new(
+    preserve => PRESERVE_ORDER,
+)->load_file($actionyaml);
+
+my $inputs;
+my $outputs;
+for my $key (keys %{ $action->{inputs} }) {
+    my $info = $action->{inputs}->{ $key };
+    my $required = $info->{required} ? '**Required** ' : '';
+    my $default = defined $info->{default} ? " Default `$info->{default}`." : '';
+    $inputs .= <<"EOM";
+### `$key`
+
+$required$info->{description}.$default
+
+EOM
+}
+for my $key (keys %{ $action->{outputs} }) {
+    my $info = $action->{outputs}->{ $key };
+    $outputs .= <<"EOM";
+### `$key`
+
+$info->{description}
+
+EOM
+}
+
+my $usage = <<"EOM";
+# $action->{name}
+
+$action->{description}
+
+## Inputs
+
+$inputs
+## Outputs
+
+$outputs
+EOM
+
+my $start = '<!--- START AUTOGENERATE -->';
+my $end = '<!--- END AUTOGENERATE -->';
+
+open my $fh, '<', 'README.md';
+my $content = do { local $/; <$fh> };
+close $fh;
+
+$content =~ s/\Q$start\E.*\Q$end\E/$start\n$usage$end/s;
+
+open $fh, '>', "README.md";
+print $fh $content;
+close $fh;
+

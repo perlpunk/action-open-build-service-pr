@@ -1,0 +1,54 @@
+name: OBS Build PR
+description: |
+  Branch and Build OBS project on Pull Request
+
+  This action will branch a given OBS package and edit the url and revision
+  in the `_service` file.
+
+  Then it will monitor the build status and post this status via the
+  [Status API](https://developer.github.com/v3/repos/statuses/).
+
+  It will monitor as long there are pending builds.
+
+  If there is a failed build, it will abort and report failure.
+
+  If the timeout exceeds, it will abort and report pending.
+inputs:
+  apiurl:
+    description: obs api url
+    required: true
+  project:
+    description: obs project
+    required: true
+  package:
+    description: obs package
+    required: true
+  branchprefix:
+    description: OBS project path prefix for the branched package
+    required: true
+  timeout:
+    description: Timeout (seconds) after which the job stops (with a failure)
+    required: false
+    default: 600 # 10min
+  sleep:
+    description: Time to sleep (seconds) between checking the build status
+    required: false
+    default: 30
+  ignore-repos:
+    description: >
+      Repositories (comma separated) which should not result in a failure
+
+outputs:
+  branch:
+    description: The path of the branched package
+runs:
+  using: 'docker'
+  image: 'Dockerfile'
+  args:
+    - ${{ inputs.apiurl }}
+    - ${{ inputs.project }}
+    - ${{ inputs.package }}
+    - ${{ inputs.branchprefix }}
+    - ${{ inputs.timeout }}
+    - ${{ inputs.sleep }}
+    - ${{ inputs.ignore-repos }}

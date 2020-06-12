@@ -1,0 +1,80 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+use 5.010;
+use autodie qw/ open close /;
+
+use XML::LibXML;
+
+my ($file, $project, $package, $ignore) = @ARGV;
+
+my $dom = XML::LibXML->load_xml(location => $file);
+my $root = $dom->documentElement();
+
+# Some repos can be expected to fail
+my %ignore = ();
+@ignore{ (split m/,/, $ignore || '') } = ();
+
+my @results = $root->findnodes(q{/resultlist/result});
+
+my ($succeeded, $pending, $failed, $unresolvable, $total) = (0) x 5;
+
+for my $result (@results) {
+    my $arch = $result->getAttribute('arch');
+    my $repo = $result->getAttribute('repository');
+    my ($status) = $result->findnodes(q{status[@package='}.$package.q{']});
+    unless ($status) {
+        # not yet setup
+        $pending++;
+        next;
+    }
+    my $code = $status->getAttribute('code');
+    next if exists $ignore{ $repo };
+    next if $code eq 'disabled';
+    next if $code eq 'excluded';
+
+    $total++;
+    if ($code eq 'finished') {
+        my ($details) = $status->findnodes(q{details});
+        if ($details) {
+            my $d = $details->textContent;
+            # finished (succeeded) counts as succeeded
+            # finished (failed) counts as failed
+            # TODO make configurable?
+            $code = $d;
+        }
+    }
+
+    if ($code eq 'succeeded') {
+        $succeeded++;
+        next;
+    }
+    warn sprintf "# %-30s %-10s %-15s\n", $repo, $arch, $code;
+    if ($code eq 'failed') {
+        $failed++;
+        next;
+    }
+    if ($code eq 'unresolvable') {
+        $unresolvable++;
+        next;
+    }
+    $pending++;
+}
+
+if ($failed) {
+    say "$failed failed ($succeeded/$total)";
+    exit 2;
+}
+if ($pending) {
+    say "($succeeded/$total)";
+    exit 1;
+}
+# no more pending, but still unresolvable -> fail
+if ($unresolvable) {
+    say "$unresolvable unresolvable ($succeeded/$total)";
+    exit 2;
+}
+say "($succeeded/$total)";
+exit 0;
+
+
