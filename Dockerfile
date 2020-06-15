@@ -4,6 +4,7 @@ RUN apt-get update \
     && apt-get install -y \
     osc \
     curl \
+    jq \
     perl \
     libxml-libxml-perl \
     locales \

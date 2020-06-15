@@ -17,6 +17,12 @@ giturl="git://github.com/$GITHUB_REPOSITORY.git"
 check-args Input apiurl project package branchprefix
 check-args Variable OSCLOGIN OSCPASS GITHUB_TOKEN
 
+echo "showing \$GITHUB_EVENT_PATH=$GITHUB_EVENT_PATH"
+cat $GITHUB_EVENT_PATH | true
+if [ "$GITHUB_EVENT_NAME" == "pull_request" ]; then
+    GITHUB_SHA=$(cat $GITHUB_EVENT_PATH | jq -r .pull_request.head.sha)
+fi
+
 osc --version
 
 write-oscrc
